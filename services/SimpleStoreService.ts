@@ -12,30 +12,63 @@ export interface PickerItem {
 }
 
 class SimpleStoreService {
-  // Hardcoded items near a sample location (adjust these coordinates as needed)
+  // Default items around NYC (will be updated based on user location)
   private hardcodedItems: SimpleItem[] = [
     {
       id: 'feastables',
       name: 'Feastables',
       aisle: 'Aisle 2',
-      latitude: 40.7129, // Slightly north of base location
+      latitude: 40.7129,
       longitude: -74.0059,
     },
     {
       id: 'toothpaste',
       name: 'Toothpaste',
       aisle: 'Aisle 3',
-      latitude: 40.7127, // Slightly south of base location
+      latitude: 40.7127,
       longitude: -74.0061,
     },
     {
       id: 'soda',
       name: 'Soda',
       aisle: 'Aisle 1',
-      latitude: 40.7130, // Slightly east of base location
+      latitude: 40.7130,
       longitude: -74.0058,
     },
   ];
+
+  /**
+   * Update item positions based on user's current location
+   * This creates realistic distances (10-50 meters) for demo purposes
+   */
+  updateItemsNearLocation(userLat: number, userLon: number): void {
+    // Create small offsets (in degrees) for realistic distances
+    const offsetDistance = 0.0001; // Roughly 10-15 meters
+    
+    this.hardcodedItems = [
+      {
+        id: 'feastables',
+        name: 'Feastables',
+        aisle: 'Aisle 2',
+        latitude: userLat + offsetDistance,
+        longitude: userLon + offsetDistance * 0.5,
+      },
+      {
+        id: 'toothpaste',
+        name: 'Toothpaste',
+        aisle: 'Aisle 3',
+        latitude: userLat - offsetDistance * 0.8,
+        longitude: userLon + offsetDistance * 1.2,
+      },
+      {
+        id: 'soda',
+        name: 'Soda',
+        aisle: 'Aisle 1',
+        latitude: userLat + offsetDistance * 1.5,
+        longitude: userLon - offsetDistance * 0.7,
+      },
+    ];
+  }
 
   /**
    * Get all available items for the dropdown

@@ -3,7 +3,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { Magnetometer } from 'expo-sensors';
 import React, { useEffect, useRef, useState } from 'react';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import { Alert, Dimensions, StyleSheet, Text, View } from 'react-native';
 import Animated, {
     runOnJS,
     useAnimatedStyle,
@@ -31,6 +31,7 @@ const SimpleARNavigation: React.FC<Props> = ({ selectedItem }) => {
   const [magnetometerAvailable, setMagnetometerAvailable] = useState<boolean>(false);
   const [currentDistance, setCurrentDistance] = useState<number>(0);
   const [arrowDirection, setArrowDirection] = useState<number>(0);
+  const [hasInitializedItems, setHasInitializedItems] = useState<boolean>(false);
 
   // Use hardcoded demo location for consistent distance calculations
   const demoLocation = {
@@ -57,8 +58,8 @@ const SimpleARNavigation: React.FC<Props> = ({ selectedItem }) => {
 
   useEffect(() => {
     if (selectedItem) {
-      // Use demo location instead of real GPS for consistent distance calculations
-      setCurrentLocation(demoLocation);
+      // Start real location tracking when item is selected
+      startLocationTracking();
       updateArrowDirection();
     } else if (!selectedItem) {
       // Hide arrow when no item selected
@@ -78,15 +79,22 @@ const SimpleARNavigation: React.FC<Props> = ({ selectedItem }) => {
       await requestPermission();
     }
 
-    // Set demo location immediately for consistent experience
-    setCurrentLocation(demoLocation);
-
-    // Request location permission (but we'll use demo location)
+    // Request location permission and start tracking
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      setLocationPermission(status === 'granted');
+      if (status === 'granted') {
+        setLocationPermission(true);
+        // Start location tracking immediately
+        startLocationTracking();
+      } else {
+        Alert.alert('Location Permission', 'Location access is required for AR navigation');
+        // Fallback to demo location if permission denied
+        setCurrentLocation(demoLocation);
+      }
     } catch (error) {
       console.error('Location permission error:', error);
+      // Fallback to demo location on error
+      setCurrentLocation(demoLocation);
     }
 
     // Start magnetometer
@@ -94,18 +102,35 @@ const SimpleARNavigation: React.FC<Props> = ({ selectedItem }) => {
   };
 
   const startLocationTracking = async () => {
-    // Use demo location for consistent distance calculations
-    setCurrentLocation(demoLocation);
-    
-    // For real GPS tracking, uncomment below:
-    /*
     try {
       if (locationPermission) {
+        // Get initial location
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+        
+        const userLocation = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        };
+        
+        setCurrentLocation(userLocation);
+
+        // Position demo items near user's actual location for realistic distances
+        if (!hasInitializedItems) {
+          simpleStoreService.updateItemsNearLocation(
+            userLocation.latitude,
+            userLocation.longitude
+          );
+          setHasInitializedItems(true);
+        }
+
+        // Watch for location changes
         locationSubscription.current = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            timeInterval: 1000,
-            distanceInterval: 1,
+            timeInterval: 1000, // Update every second
+            distanceInterval: 1, // Update every meter
           },
           (location) => {
             setCurrentLocation({
@@ -114,11 +139,15 @@ const SimpleARNavigation: React.FC<Props> = ({ selectedItem }) => {
             });
           }
         );
+      } else {
+        // Fallback to demo location if no permission
+        setCurrentLocation(demoLocation);
       }
     } catch (error) {
       console.error('Location tracking error:', error);
+      // Fallback to demo location for consistent experience
+      setCurrentLocation(demoLocation);
     }
-    */
   };
 
   const startMagnetometer = async () => {
